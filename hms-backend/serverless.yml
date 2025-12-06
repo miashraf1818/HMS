@@ -1,0 +1,118 @@
+service: hms-backend
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.9
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  timeout: 30
+  memorySize: 512
+  
+  environment:
+    STAGE: ${self:provider.stage}
+    # Django Settings
+    SECRET_KEY: ${env:SECRET_KEY}
+    DEBUG: false
+    ALLOWED_HOSTS: ${env:ALLOWED_HOSTS, '*'}
+    
+    # Database Configuration
+    DB_NAME: ${env:DB_NAME}
+    DB_USER: ${env:DB_USER}
+    DB_PASSWORD: ${env:DB_PASSWORD}
+    DB_HOST: ${env:DB_HOST}
+    DB_PORT: ${env:DB_PORT, '5432'}
+    
+    # JWT Configuration
+    ALGORITHM: ${env:ALGORITHM, 'HS256'}
+    ACCESS_TOKEN_EXPIRE_MINUTES: ${env:ACCESS_TOKEN_EXPIRE_MINUTES, '10080'}
+    
+    # Email Configuration
+    EMAIL_HOST: ${env:EMAIL_HOST, 'smtp.gmail.com'}
+    EMAIL_PORT: ${env:EMAIL_PORT, '587'}
+    EMAIL_USE_TLS: ${env:EMAIL_USE_TLS, 'True'}
+    EMAIL_HOST_USER: ${env:EMAIL_HOST_USER}
+    EMAIL_HOST_PASSWORD: ${env:EMAIL_HOST_PASSWORD}
+    DEFAULT_FROM_EMAIL: ${env:DEFAULT_FROM_EMAIL, 'HMS Hospital <noreply@hms.com>'}
+    
+    # Google OAuth Settings
+    GOOGLE_CLIENT_ID: ${env:GOOGLE_CLIENT_ID}
+    GOOGLE_CLIENT_SECRET: ${env:GOOGLE_CLIENT_SECRET}
+    GOOGLE_REDIRECT_URI: ${env:GOOGLE_REDIRECT_URI}
+    
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: "*"
+        - Effect: Allow
+          Action:
+            - rds:*
+          Resource: "*"
+
+functions:
+  api:
+    handler: wsgi_handler.handler
+    events:
+      - http:
+          path: /
+          method: ANY
+          cors: true
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors: true
+
+plugins:
+  - serverless-python-requirements
+  - serverless-wsgi
+
+custom:
+  wsgi:
+    app: config.wsgi.application
+    packRequirements: false
+  pythonRequirements:
+    dockerizePip: non-linux
+    zip: true
+    slim: true
+    strip: false
+    layer: true
+    fileName: requirements.txt
+    noDeploy:
+      - boto3
+      - botocore
+      - docutils
+      - jmespath
+      - pip
+      - python-dateutil
+      - s3transfer
+      - setuptools
+      - six
+      - tensorboard
+
+package:
+  individually: false
+  patterns:
+    - '!venv/**'
+    - '!node_modules/**'
+    - '!.git/**'
+    - '!.idea/**'
+    - '!__pycache__/**'
+    - '!*.pyc'
+    - '!.env'
+    - '!test_*.py'
+    - '!.pytest_cache/**'
+    - '!.coverage'
+    - '!htmlcov/**'
+    - 'config/**'
+    - 'accounts/**'
+    - 'appointments/**'
+    - 'notifications/**'
+    - 'templates/**'
+    - 'manage.py'
+    - 'requirements.txt'
