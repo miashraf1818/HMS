@@ -134,13 +134,113 @@ NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id
 - `PATCH /api/appointments/{id}/status/` - Update appointment status
 - `GET /api/appointments/availability/{doctor_id}/?date={date}` - Check availability
 
-## 📧 Email Features
+## 📧 Email & Calendar Integration
 
-- **Welcome Emails**: Sent on registration
-- **Appointment Confirmations**: Sent when booking
-- **Calendar Invites**: .ics files attached to emails
+### Email Notifications
+
+**Automated Email System** with Gmail SMTP:
+- **Welcome Emails**: Sent on registration to user + admin
+- **Appointment Confirmations**: Sent when booking is created
 - **Status Updates**: Sent when appointments are approved/completed
-- **Admin Copies**: All emails copied to admin
+- **Admin Monitoring**: All emails copied to admin for oversight
+
+### 📅 Calendar Integration
+
+**Industry-Standard iCalendar (.ics) Implementation**
+
+Instead of using the Google Calendar API directly (which requires production HTTPS, OAuth verification, and strict Google review process), this project implements calendar integration using the **iCalendar (.ics) standard** - the same approach used by airlines, hotels, and professional scheduling systems.
+
+#### How It Works
+
+When an appointment is booked or confirmed, the backend automatically:
+
+1. **Creates an iCalendar Event** (`.ics` file) containing:
+   - Doctor and patient names
+   - Appointment date and time (30-minute slots)
+   - Location (HMS Hospital)
+   - Appointment reason/description
+   - Automatic reminder (VALARM) set for 24 hours before
+   - Meeting attendees (doctor + patient emails)
+
+2. **Attaches the `.ics` file** to email notifications sent to:
+   - **Patient** - appointment confirmation + calendar invite
+   - **Doctor** - new appointment notification + calendar invite
+   - **Admin** - monitoring copy + calendar invite
+
+3. **One-Click Calendar Addition**:
+   - Recipients click the `appointment.ics` attachment
+   - Their default calendar app opens (Google Calendar, Outlook, Apple Calendar, etc.)
+   - Single click to add appointment with reminders pre-configured
+   - Works on all devices (desktop, mobile, web)
+
+#### Why This Approach
+
+✅ **Universal Compatibility** - Works with ALL major calendar applications:
+- Google Calendar
+- Microsoft Outlook
+- Apple Calendar
+- Yahoo Calendar
+- Any RFC5545-compliant calendar client
+
+✅ **No API Restrictions**:
+- No OAuth tokens required
+- No HTTPS/SSL requirements
+- No Google verification process
+- No API rate limits
+- Works in development and production equally
+
+✅ **Industry Standard**:
+- Same pattern used by airlines for flight confirmations
+- Used by hotels for reservation confirmations
+- Widely recognized and trusted format
+
+✅ **Fully Functional**:
+- Works immediately without additional setup
+- No external API dependencies
+- Portable across environments
+- Reliable delivery via email
+
+#### Google Calendar API (Optional Enhancement)
+
+The project includes a partially implemented Google Calendar service (`appointments/google_calendar.py`) designed for direct calendar synchronization using OAuth tokens. This would enable:
+
+- Automatic event creation in user's Google Calendar
+- Real-time sync without email interaction
+- Calendar event updates and deletions
+
+**Implementation Status**: Prepared but not activated because it requires:
+- Verified production domain with HTTPS/SSL
+- Google Cloud Platform approval for Calendar API scopes
+- OAuth consent screen verification
+- User authorization flow for each user
+
+**Current Strategy**: The `.ics` email attachment approach serves as the primary, production-ready calendar integration, while direct Google Calendar API sync remains available as a future enterprise enhancement.
+
+#### Technical Implementation
+
+```python
+# Backend: appointments/views.py
+from icalendar import Calendar, Event, Alarm
+
+def send_booking_confirmation(appointment):
+    # Create iCalendar event
+    cal = Calendar()
+    event = Event()
+    
+    # Add event details
+    event.add('summary', f'Appointment: Dr. {doctor_name}')
+    event.add('dtstart', start_datetime)
+    event.add('dtend', end_datetime)
+    event.add('location', 'HMS Hospital')
+    
+    # Add 24-hour reminder
+    alarm = Alarm()
+    alarm.add('trigger', timedelta(hours=-24))
+    event.add_component(alarm)
+    
+    # Attach to email
+    email.attach('appointment.ics', cal.to_ical(), 'text/calendar')
+```
 
 ## 🔒 Security
 
